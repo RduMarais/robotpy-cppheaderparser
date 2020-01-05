@@ -2508,8 +2508,8 @@ class _CppHeader(Resolver):
 
 # fmt: off
 _namestack_append_tokens = {
-    "(",
-    ")",
+    "{",
+    "}",
     "[",
     "]",
     "=",
@@ -2729,6 +2729,7 @@ class CppHeader(_CppHeader):
         self.braceHandled = False
         tok = None
         self.stmtTokens = []
+        parenDepth = 0
 
         try:
             while True:
@@ -2779,7 +2780,8 @@ class CppHeader(_CppHeader):
                     self.nameStack = []
                     continue
 
-                if tok.type == "{":
+
+                if parenDepth == 0 and tok.type == "{":
                     if len(self.nameStack) >= 2 and is_namespace(
                         self.nameStack
                     ):  # namespace {} with no name used in boost, this sets default?
@@ -2830,7 +2832,7 @@ class CppHeader(_CppHeader):
                     if not self.braceHandled:
                         self.braceDepth += 1
 
-                elif tok.type == "}":
+                elif parenDepth == 0 and tok.type == "}":
                     if self.braceDepth == 0:
                         continue
                     if self.braceDepth == len(self.nameSpaces):
@@ -2862,7 +2864,6 @@ class CppHeader(_CppHeader):
                             self.curClass = ""
                         self.stack = []
                         self.stmtTokens = []
-
                 elif tok.type in _namestack_append_tokens:
                     self.nameStack.append(tok.value)
                     nameStackAppended = True
@@ -2922,6 +2923,15 @@ class CppHeader(_CppHeader):
                     self.stack = []
                     self.nameStack = []
                     self.stmtTokens = []
+                elif tok.type == "(":
+                    parenDepth += 1
+                    self.nameStack.append(tok.value)
+                    nameStackAppended = True
+                elif tok.type == ")":
+                    self.nameStack.append(tok.value)
+                    nameStackAppended = True
+                    if parenDepth != 0:
+                        parenDepth -= 1
 
                 newNsLen = len(self.nameStack)
                 if nslen != newNsLen and newNsLen == 1:
